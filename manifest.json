@@ -2,7 +2,7 @@
   "name": "Social Planner",
   "short_name": "Social Planner",
   "description": "Gestão de publicações para LinkedIn, Instagram, Facebook e TikTok",
-  "start_url": "./social-planner.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f0f13",
   "theme_color": "#0f0f13",
