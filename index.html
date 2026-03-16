@@ -1180,7 +1180,9 @@ function createPostFromMention(firm,title){
   document.getElementById('m-copy').value=copy;
   onCopy();
   toast('Copy pré-preenchido com a menção!');
-}var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
+}
+
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
 
 init();
 
