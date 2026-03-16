@@ -1079,8 +1079,7 @@ function loadListening(){
   var firmKeys=Object.keys(FIRMS);
   var pending=firmKeys.length;
   firmKeys.forEach(function(key){
-    var q=encodeURIComponent(FIRMS[key].query+' advogados OR lawyers OR law');
-    var url='https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent('https://news.google.com/rss/search?q='+q+'&hl=pt-PT&gl=PT&ceid=PT:pt')+'&api_key=public&count=10';
+    var url=SHEET_URL+'?action=rss&q='+encodeURIComponent(FIRMS[key].query);
     fetch(url)
       .then(function(r){return r.json();})
       .then(function(data){
@@ -1089,10 +1088,10 @@ function loadListening(){
             listeningItems.push({
               firm:key,
               title:item.title||'',
-              description:(item.description||'').replace(/<[^>]*>/g,'').substring(0,180),
+              description:(item.description||'').substring(0,180),
               link:item.link||'',
               pubDate:item.pubDate||'',
-              source:item.author||extractDomain(item.link)
+              source:extractDomain(item.link)
             });
           });
         }
