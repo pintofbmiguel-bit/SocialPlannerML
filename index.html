@@ -1082,6 +1082,7 @@ function loadListening(){
   document.getElementById('ls-sources').innerHTML='<div style="font-size:12px;color:var(--text3)">A carregar...</div>';
   var firmKeys=Object.keys(FIRMS);
   var pending=firmKeys.length;
+  var seenLinks={};
   firmKeys.forEach(function(key){
     var url=SHEET_URL+'?action=rss&q='+encodeURIComponent(FIRMS[key].query);
     fetch(url)
@@ -1089,10 +1090,21 @@ function loadListening(){
       .then(function(data){
         if(data.items&&data.items.length){
           data.items.forEach(function(item){
+            if(seenLinks[item.link])return;
+            seenLinks[item.link]=true;
+            var desc=(item.description||'')
+              .replace(/&nbsp;/g,' ')
+              .replace(/&amp;/g,'&')
+              .replace(/&lt;/g,'<')
+              .replace(/&gt;/g,'>')
+              .replace(/&quot;/g,'"')
+              .replace(/\s+/g,' ')
+              .trim()
+              .substring(0,180);
             listeningItems.push({
               firm:key,
               title:item.title||'',
-              description:(item.description||'').substring(0,180),
+              description:desc,
               link:item.link||'',
               pubDate:item.pubDate||'',
               source:extractDomain(item.link)
