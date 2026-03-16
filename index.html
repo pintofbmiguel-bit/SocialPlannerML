@@ -336,6 +336,14 @@ html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;font-size:14px;
 .sentiment.pos{background:#dcfce7;color:#15803d}
 .sentiment.neu{background:#f1f5f9;color:#64748b}
 .sentiment.neg{background:#fee2e2;color:#b91c1c}
+.fav-btn{background:transparent;border:none;cursor:pointer;font-size:14px;padding:2px 4px;transition:.1s;color:var(--text3);line-height:1}
+.fav-btn:hover{color:#f59e0b}
+.fav-btn.on{color:#f59e0b}
+.ls-date-filter{display:flex;gap:4px}
+.ldf{padding:4px 10px;border-radius:20px;border:1px solid var(--border2);cursor:pointer;font-size:11px;font-weight:500;color:var(--text2);background:var(--bg3);transition:.1s}
+.ldf.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ls-favs-section{margin-top:6px}
+.adv-dot{background:#c0392b}
 .ls-bar-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
 .ls-bar-wrap{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:8px}
 .ls-bar-fill{height:100%;border-radius:2px}
@@ -548,7 +556,19 @@ html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;font-size:14px;
         <div class="firm-pill f-cuat" onclick="toggleFirm('cuat',this)">Cuatrecasas</div>
         <div class="firm-pill f-abreu" onclick="toggleFirm('abreu',this)">Abreu Advogados</div>
         <div class="firm-pill f-uria" onclick="toggleFirm('uria',this)">Uría Menéndez</div>
-        <div class="firm-pill f-abreu_f" onclick="toggleFirm('abreu_f',this)">Abreu & Associados</div>
+      </div>
+      <div class="ls-toolbar" style="border-top:none;padding-top:6px">
+        <span class="ls-toolbar-lbl">Período</span>
+        <div class="ls-date-filter">
+          <div class="ldf on" id="ldf-all" onclick="setDateFilter('all',this)">Todos</div>
+          <div class="ldf" id="ldf-today" onclick="setDateFilter('today',this)">Hoje</div>
+          <div class="ldf" id="ldf-week" onclick="setDateFilter('week',this)">Esta semana</div>
+          <div class="ldf" id="ldf-month" onclick="setDateFilter('month',this)">Este mês</div>
+        </div>
+        <div class="ls-date-filter" style="margin-left:16px">
+          <div class="ldf on" id="ldf-feed" onclick="setFeedTab('feed',this)">Feed</div>
+          <div class="ldf" id="ldf-favs" onclick="setFeedTab('favs',this)">⭐ Favoritos</div>
+        </div>
         <span class="ls-last-update" id="ls-last-update"></span>
         <button class="ls-refresh-btn" onclick="loadListening()">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -1060,12 +1080,15 @@ var FIRMS={
   vda:{name:'VdA',query:'"Vieira de Almeida" OR "VdA"',color:'#2b9348',cls:'f-vda'},
   cuat:{name:'Cuatrecasas',query:'"Cuatrecasas"',color:'#e76f51',cls:'f-cuat'},
   abreu:{name:'Abreu Advogados',query:'"Abreu Advogados"',color:'#457b9d',cls:'f-abreu'},
-  uria:{name:'Uría Menéndez',query:'"Uría Menéndez" OR "Uria Menendez"',color:'#9b59b6',cls:'f-uria'},
-  abreu_f:{name:'Abreu & Associados',query:'"Abreu & Associados"',color:'#1abc9c',cls:'f-abreu_f'}
+  uria:{name:'Uría Menéndez',query:'"Uría Menéndez" OR "Uria Menendez"',color:'#9b59b6',cls:'f-uria'}
 };
-var activeFirms={ml:true,plmj:true,vda:true,cuat:false,abreu:false,uria:false,abreu_f:false};
+var ADVOCATUS_RSS='https://www.advocatus.pt/feed';
+var activeFirms={ml:true,plmj:true,vda:true,cuat:false,abreu:false,uria:false};
 var listeningItems=[];
 var listeningLoaded=false;
+var dateFilter='all';
+var feedTab='feed';
+var favourites=JSON.parse(localStorage.getItem('sp_favs')||'[]');
 
 function toggleFirm(key,el){
   activeFirms[key]=!activeFirms[key];
@@ -1074,15 +1097,71 @@ function toggleFirm(key,el){
   renderListeningSidebar();
 }
 
+function setDateFilter(f,el){
+  dateFilter=f;
+  document.querySelectorAll('.ldf[id^="ldf-"]').forEach(function(x){if(['ldf-all','ldf-today','ldf-week','ldf-month'].includes(x.id))x.classList.remove('on');});
+  el.classList.add('on');
+  renderListeningFeed();
+}
+
+function setFeedTab(t,el){
+  feedTab=t;
+  document.querySelectorAll('.ldf[id^="ldf-"]').forEach(function(x){if(['ldf-feed','ldf-favs'].includes(x.id))x.classList.remove('on');});
+  el.classList.add('on');
+  renderListeningFeed();
+}
+
+function toggleFav(link,btn){
+  var idx=favourites.findIndex(function(f){return f.link===link;});
+  if(idx>-1){
+    favourites.splice(idx,1);
+    btn.classList.remove('on');
+    btn.title='Guardar nos favoritos';
+  } else {
+    var item=listeningItems.find(function(i){return i.link===link;});
+    if(item)favourites.push(item);
+    btn.classList.add('on');
+    btn.title='Remover dos favoritos';
+  }
+  localStorage.setItem('sp_favs',JSON.stringify(favourites));
+}
+
+function isFav(link){return favourites.some(function(f){return f.link===link;});}
+
+function filterByDate(items){
+  if(dateFilter==='all')return items;
+  var now=new Date();
+  return items.filter(function(i){
+    var d=new Date(i.pubDate);
+    if(dateFilter==='today'){var s=new Date(now);s.setHours(0,0,0,0);return d>=s;}
+    if(dateFilter==='week'){var s=new Date(now);s.setDate(now.getDate()-7);return d>=s;}
+    if(dateFilter==='month'){var s=new Date(now);s.setDate(now.getDate()-30);return d>=s;}
+    return true;
+  });
+}
+
 function loadListening(){
   listeningLoaded=false;
   listeningItems=[];
-  document.getElementById('ls-feed').innerHTML='<div class="ls-loading"><div class="ls-spinner"></div>A carregar menções do Google News...</div>';
+  document.getElementById('ls-feed').innerHTML='<div class="ls-loading"><div class="ls-spinner"></div>A carregar menções do Google News e Advocatus...</div>';
   document.getElementById('ls-counts').innerHTML='<div style="font-size:12px;color:var(--text3)">A carregar...</div>';
   document.getElementById('ls-sources').innerHTML='<div style="font-size:12px;color:var(--text3)">A carregar...</div>';
   var firmKeys=Object.keys(FIRMS);
-  var pending=firmKeys.length;
+  var pending=firmKeys.length+1;
   var seenLinks={};
+
+  function done(){
+    pending--;
+    if(pending===0){
+      listeningLoaded=true;
+      listeningItems.sort(function(a,b){return new Date(b.pubDate)-new Date(a.pubDate);});
+      var now=new Date();
+      document.getElementById('ls-last-update').textContent='Atualizado às '+now.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+      renderListeningFeed();
+      renderListeningSidebar();
+    }
+  }
+
   firmKeys.forEach(function(key){
     var url=SHEET_URL+'?action=rss&q='+encodeURIComponent(FIRMS[key].query);
     fetch(url)
@@ -1092,39 +1171,36 @@ function loadListening(){
           data.items.forEach(function(item){
             if(seenLinks[item.link])return;
             seenLinks[item.link]=true;
-            var desc=(item.description||'')
-              .replace(/&nbsp;/g,' ')
-              .replace(/&amp;/g,'&')
-              .replace(/&lt;/g,'<')
-              .replace(/&gt;/g,'>')
-              .replace(/&quot;/g,'"')
-              .replace(/\s+/g,' ')
-              .trim()
-              .substring(0,180);
-            listeningItems.push({
-              firm:key,
-              title:item.title||'',
-              description:desc,
-              link:item.link||'',
-              pubDate:item.pubDate||'',
-              source:extractDomain(item.link)
-            });
+            var desc=(item.description||'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/\s+/g,' ').trim().substring(0,180);
+            listeningItems.push({firm:key,title:item.title||'',description:desc,link:item.link||'',pubDate:item.pubDate||'',source:extractDomain(item.link)});
           });
         }
       })
       .catch(function(){})
-      .finally(function(){
-        pending--;
-        if(pending===0){
-          listeningLoaded=true;
-          listeningItems.sort(function(a,b){return new Date(b.pubDate)-new Date(a.pubDate);});
-          var now=new Date();
-          document.getElementById('ls-last-update').textContent='Atualizado às '+now.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
-          renderListeningFeed();
-          renderListeningSidebar();
-        }
-      });
+      .finally(done);
   });
+
+  var advUrl=SHEET_URL+'?action=rss&q='+encodeURIComponent('site:advocatus.pt');
+  fetch(advUrl)
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data.items&&data.items.length){
+        data.items.forEach(function(item){
+          if(seenLinks[item.link])return;
+          seenLinks[item.link]=true;
+          var firmFound=null;
+          var t=(item.title||'').toLowerCase();
+          Object.keys(FIRMS).forEach(function(k){
+            if(t.includes(FIRMS[k].name.toLowerCase().split(' ')[0].toLowerCase()))firmFound=k;
+          });
+          if(!firmFound)firmFound='ml';
+          var desc=(item.description||'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/\s+/g,' ').trim().substring(0,180);
+          listeningItems.push({firm:firmFound,title:item.title||'',description:desc,link:item.link||'',pubDate:item.pubDate||'',source:'advocatus.pt'});
+        });
+      }
+    })
+    .catch(function(){})
+    .finally(done);
 }
 
 function extractDomain(url){
@@ -1152,26 +1228,43 @@ function getSentiment(text){
 }
 
 function renderListeningFeed(){
-  var filtered=listeningItems.filter(function(i){return activeFirms[i.firm];});
   var feed=document.getElementById('ls-feed');
   if(!listeningLoaded){feed.innerHTML='<div class="ls-loading"><div class="ls-spinner"></div>A carregar...</div>';return;}
-  if(!filtered.length){feed.innerHTML='<div class="ls-empty"><div style="font-size:32px;margin-bottom:10px">📰</div><div style="font-size:14px;font-weight:500;color:var(--text2);margin-bottom:6px">Sem resultados</div><div>Ativa mais firmas ou clica em Atualizar</div></div>';return;}
-  feed.innerHTML=filtered.map(function(item){
-    var f=FIRMS[item.firm];
-    var domain=extractDomain(item.link);
+
+  var items;
+  if(feedTab==='favs'){
+    items=favourites.slice();
+  } else {
+    items=listeningItems.filter(function(i){return activeFirms[i.firm];});
+    items=filterByDate(items);
+  }
+
+  if(!items.length){
+    feed.innerHTML='<div class="ls-empty"><div style="font-size:32px;margin-bottom:10px">'+(feedTab==='favs'?'⭐':'📰')+'</div><div style="font-size:14px;font-weight:500;color:var(--text2);margin-bottom:6px">'+(feedTab==='favs'?'Sem favoritos':'Sem resultados')+'</div><div>'+(feedTab==='favs'?'Guarda menções clicando na estrela ⭐':'Ativa mais firmas ou ajusta o período')+'</div></div>';
+    return;
+  }
+
+  feed.innerHTML=items.map(function(item){
+    var f=FIRMS[item.firm]||{name:item.firm,cls:'f-ml',color:'#7c6af7'};
+    var domain=item.source||extractDomain(item.link);
     var sentiment=getSentiment(item.title+' '+item.description);
+    var faved=isFav(item.link);
+    var linkEnc=escHtml(item.link);
+    var titleEnc=escHtml(item.title).replace(/'/g,"\\'");
+    var isAdv=domain==='advocatus.pt';
     return '<div class="mention-card">'
       +'<div class="mc-head">'
-      +'<div class="mc-source"><div class="mc-source-dot" style="background:#e8291c"></div><span class="mc-source-name">'+escHtml(domain)+'</span></div>'
+      +'<div class="mc-source"><div class="mc-source-dot" style="background:'+(isAdv?'#c0392b':'#e8291c')+'"></div><span class="mc-source-name">'+escHtml(domain)+'</span>'+(isAdv?'<span style="font-size:9px;background:#fef0ee;color:#c0392b;padding:1px 5px;border-radius:4px;font-weight:600;margin-left:4px">Advocatus</span>':'')+'</div>'
       +'<span class="mc-firm-tag '+f.cls+'">'+escHtml(f.name)+'</span>'
       +'<span class="mc-time">'+timeAgo(item.pubDate)+'</span>'
       +'</div>'
-      +'<div class="mc-title"><a href="'+escHtml(item.link)+'" target="_blank">'+escHtml(item.title)+'</a></div>'
+      +'<div class="mc-title"><a href="'+linkEnc+'" target="_blank">'+escHtml(item.title)+'</a></div>'
       +(item.description?'<div class="mc-body">'+escHtml(item.description)+'</div>':'')
       +'<div class="mc-footer">'
       +'<span class="sentiment '+sentiment.cls+'">'+sentiment.label+'</span>'
-      +'<a href="'+escHtml(item.link)+'" target="_blank" style="font-size:11px;color:var(--accent)">Ler artigo →</a>'
-      +'<button class="mc-create-btn" onclick="createPostFromMention(\''+escHtml(item.firm)+'\',\''+escHtml(item.title).replace(/'/g,"\\'")+'\')">Criar post ↗</button>'
+      +'<a href="'+linkEnc+'" target="_blank" style="font-size:11px;color:var(--accent)">Ler artigo →</a>'
+      +'<button class="fav-btn'+(faved?' on':'')+'" title="'+(faved?'Remover dos favoritos':'Guardar nos favoritos')+'" onclick="toggleFav(\''+linkEnc+'\',this)">⭐</button>'
+      +'<button class="mc-create-btn" onclick="createPostFromMention(\''+escHtml(item.firm)+'\',\''+titleEnc+'\')">Criar post ↗</button>'
       +'</div>'
       +'</div>';
   }).join('');
