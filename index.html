@@ -83,7 +83,18 @@ html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;font-size:14px;
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-txt{font-size:13px;color:var(--text2)}
 
-/* CALENDAR MONTH */
+/* STATS CARDS TOP */
+.stats-top{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg)}
+.stat-card-top{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;box-shadow:var(--shadow)}
+.sct-plat{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.sct-dot{width:8px;height:8px;border-radius:50%}
+.sct-name{font-size:11px;font-weight:600;color:var(--text2)}
+.sct-num{font-size:22px;font-weight:600;color:var(--text);line-height:1}
+.sct-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.sct-trend{font-size:11px;font-weight:500;margin-top:6px}
+.sct-trend.up{color:var(--green)}
+.sct-trend.dn{color:var(--red)}
+.sct-trend.eq{color:var(--text3)}
 .cal-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .cal-nav{display:flex;align-items:center;gap:8px;padding:10px 18px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg2)}
 .cal-nb{padding:5px 10px;border-radius:var(--rs);background:var(--bg3);border:1px solid var(--border);cursor:pointer;font-size:12px;color:var(--text2);transition:.1s}
@@ -425,6 +436,7 @@ html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;font-size:14px;
 
     <!-- MONTH VIEW -->
     <div id="view-cal" class="cal-wrap">
+      <div class="stats-top" id="stats-top-month"></div>
       <div class="cal-nav">
         <button class="cal-nb" onclick="chM(-1)">← Anterior</button>
         <div class="cal-lbl" id="cal-lbl"></div>
@@ -442,6 +454,7 @@ html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;font-size:14px;
 
     <!-- WEEK VIEW -->
     <div id="view-week" class="week-wrap" style="display:none">
+      <div class="stats-top" id="stats-top-week"></div>
       <div class="cal-nav">
         <button class="cal-nb" onclick="chW(-1)">← Anterior</button>
         <div class="cal-lbl" id="week-lbl"></div>
@@ -672,7 +685,30 @@ function init(){
   readSheets().then(function(){document.getElementById('loading-screen').classList.add('hidden');renderAll();renderMedia();});
 }
 
-function renderAll(){updateBadges();if(calViewMode==='month')renderCal();else renderWeek();renderList();renderLib();}
+function renderAll(){updateBadges();renderStatsCards();if(calViewMode==='month')renderCal();else renderWeek();renderList();renderLib();}
+
+function renderStatsCards(){
+  var n=new Date();
+  var prevMonth=new Date(n.getFullYear(),n.getMonth()-1,1);
+  var plats=['li','ig','fb','tt'];
+  var names={li:'LinkedIn',ig:'Instagram',fb:'Facebook',tt:'TikTok'};
+  var colors={li:'#0a66c2',ig:'#e1306c',fb:'#1877f2',tt:'#333'};
+  var fp=posts.filter(function(p){return acct==='all'||p.platforms.includes(acct);});
+  var html=plats.map(function(pl){
+    var curr=fp.filter(function(p){return p.platforms.includes(pl)&&new Date(p.dt).getMonth()===n.getMonth()&&new Date(p.dt).getFullYear()===n.getFullYear();}).length;
+    var prev=fp.filter(function(p){return p.platforms.includes(pl)&&new Date(p.dt).getMonth()===prevMonth.getMonth()&&new Date(p.dt).getFullYear()===prevMonth.getFullYear();}).length;
+    var diff=curr-prev;
+    var trendClass=diff>0?'up':diff<0?'dn':'eq';
+    var trendTxt=diff>0?'↑ '+diff+' vs mês anterior':diff<0?'↓ '+Math.abs(diff)+' vs mês anterior':'= igual ao mês anterior';
+    return '<div class="stat-card-top">'
+      +'<div class="sct-plat"><div class="sct-dot" style="background:'+colors[pl]+'"></div><span class="sct-name">'+names[pl]+'</span></div>'
+      +'<div class="sct-num">'+curr+'</div>'
+      +'<div class="sct-sub">posts este mês</div>'
+      +'<div class="sct-trend '+trendClass+'">'+trendTxt+'</div>'
+      +'</div>';
+  }).join('');
+  ['stats-top-month','stats-top-week'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=html;});
+}
 
 function updateBadges(){
   var n=new Date();
@@ -762,7 +798,7 @@ function renderWeek(){
   document.getElementById('week-lbl').textContent=lbl;
   var today=new Date();
   var timeSlots=[9,11,13,15,17,19];
-  var html='<div class="wk-time-col"><div class="wk-time-head"></div>'+timeSlots.map(function(h){return '<div class="wk-time-slot"><span class="wk-time-lbl">'+h+' AM</span></div>';}).join('')+'</div>';
+  var html='<div class="wk-time-col"><div class="wk-time-head"></div>'+timeSlots.map(function(h){return '<div class="wk-time-slot"><span class="wk-time-lbl">'+String(h).padStart(2,'0')+'h00</span></div>';}).join('')+'</div>';
   for(var di=0;di<7;di++){
     var day=new Date(weekStart);day.setDate(weekStart.getDate()+di);
     var isT=day.toDateString()===today.toDateString();
@@ -897,7 +933,18 @@ function editPost(id){openComposer(id);}
 function delPost(id){if(!confirm('Eliminar esta publicação?'))return;posts=posts.filter(function(p){return p.id!==id;});writeSheets().then(function(){renderAll();toast('Publicação eliminada.');});}
 
 // LIBRARY
-function renderLib(){document.getElementById('lib-body').innerHTML=library.map(function(l){return '<div class="lib-card" onclick="useTpl(\''+l.id+'\')"><h4>'+escHtml(l.title)+'</h4><p>'+escHtml(l.copy)+'</p><div class="lib-tags">'+(l.tags||[]).map(function(t){return '<span class="lib-tag">'+escHtml(t)+'</span>';}).join('')+'</div><div class="lib-use">Usar template →</div></div>';}).join('');}
+function renderLib(){
+  document.getElementById('lib-body').innerHTML=library.map(function(l){
+    return '<div class="lib-card" onclick="useTpl(\''+l.id+'\')" style="position:relative">'
+      +'<button onclick="event.stopPropagation();delTpl(\''+l.id+'\')" title="Apagar template" style="position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:5px;background:transparent;border:1px solid var(--border2);cursor:pointer;color:var(--text3);font-size:11px;display:flex;align-items:center;justify-content:center;transition:.1s" onmouseover="this.style.color=\'var(--red)\';this.style.borderColor=\'var(--red)\'" onmouseout="this.style.color=\'var(--text3)\';this.style.borderColor=\'var(--border2)\'">✕</button>'
+      +'<h4 style="padding-right:28px">'+escHtml(l.title)+'</h4>'
+      +'<p>'+escHtml(l.copy)+'</p>'
+      +'<div class="lib-tags">'+(l.tags||[]).map(function(t){return '<span class="lib-tag">'+escHtml(t)+'</span>';}).join('')+'</div>'
+      +'<div class="lib-use">Usar template →</div>'
+      +'</div>';
+  }).join('');
+}
+function delTpl(id){if(!confirm('Apagar este template?'))return;library=library.filter(function(l){return l.id!==id;});localStorage.setItem('sp_lib',JSON.stringify(library));renderLib();toast('Template apagado.');}
 function useTpl(id){var l=library.find(function(x){return x.id===id;});if(!l)return;openComposer();document.getElementById('m-copy').value=l.copy;onCopy();toast('Template carregado!');}
 function addTpl(){var title=prompt('Nome do template:');if(!title)return;var copy=prompt('Texto do template:');if(!copy)return;library.push({id:Date.now()+'',title:title,copy:copy,tags:['custom']});localStorage.setItem('sp_lib',JSON.stringify(library));renderLib();toast('Template adicionado!');}
 
