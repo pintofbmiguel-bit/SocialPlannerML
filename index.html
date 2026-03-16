@@ -332,6 +332,10 @@ html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;font-size:14px;
 .mc-footer{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
 .mc-create-btn{margin-left:auto;padding:4px 10px;border-radius:6px;background:var(--accent-bg);color:var(--accent);border:none;cursor:pointer;font-size:11px;font-weight:500;transition:.1s}
 .mc-create-btn:hover{background:var(--accent);color:#fff}
+.sentiment{padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600}
+.sentiment.pos{background:#dcfce7;color:#15803d}
+.sentiment.neu{background:#f1f5f9;color:#64748b}
+.sentiment.neg{background:#fee2e2;color:#b91c1c}
 .ls-bar-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
 .ls-bar-wrap{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:8px}
 .ls-bar-fill{height:100%;border-radius:2px}
@@ -1123,6 +1127,18 @@ function timeAgo(dateStr){
   return 'há '+Math.floor(diff/1440)+'d';
 }
 
+function getSentiment(text){
+  var t=(text||'').toLowerCase();
+  var pos=['prémio','premiada','premiado','reconhecida','reconhecido','nomeada','nomeado','venceu','melhor','distinção','distinguida','distinguido','parceria','expansão','reforça','lidera','crescimento','inovação','sustentabilidade','aprovação','acordo','celebra','conquista','referência','excelência','reputação','sucesso','destaque','referenciada','galardão','galardoada','top','ranking','award','best','leading','partner','deal','landmark','major'];
+  var neg=['sanção','sancionada','condenada','condenado','processo','investigação','multa','escândalo','irregularidade','suspeita','acusação','queixa','recurso','impugna','falha','crítica','polémica','controvérsia','demissão','rescisão','conflito','litígio','disputa','penalização','coima','infração','violação','fraude','corrupção','ilegal','irregular'];
+  var posScore=0,negScore=0;
+  pos.forEach(function(w){if(t.includes(w))posScore++;});
+  neg.forEach(function(w){if(t.includes(w))negScore++;});
+  if(posScore>negScore)return {label:'Positivo',cls:'pos'};
+  if(negScore>posScore)return {label:'Negativo',cls:'neg'};
+  return {label:'Neutro',cls:'neu'};
+}
+
 function renderListeningFeed(){
   var filtered=listeningItems.filter(function(i){return activeFirms[i.firm];});
   var feed=document.getElementById('ls-feed');
@@ -1131,6 +1147,7 @@ function renderListeningFeed(){
   feed.innerHTML=filtered.map(function(item){
     var f=FIRMS[item.firm];
     var domain=extractDomain(item.link);
+    var sentiment=getSentiment(item.title+' '+item.description);
     return '<div class="mention-card">'
       +'<div class="mc-head">'
       +'<div class="mc-source"><div class="mc-source-dot" style="background:#e8291c"></div><span class="mc-source-name">'+escHtml(domain)+'</span></div>'
@@ -1140,6 +1157,7 @@ function renderListeningFeed(){
       +'<div class="mc-title"><a href="'+escHtml(item.link)+'" target="_blank">'+escHtml(item.title)+'</a></div>'
       +(item.description?'<div class="mc-body">'+escHtml(item.description)+'</div>':'')
       +'<div class="mc-footer">'
+      +'<span class="sentiment '+sentiment.cls+'">'+sentiment.label+'</span>'
       +'<a href="'+escHtml(item.link)+'" target="_blank" style="font-size:11px;color:var(--accent)">Ler artigo →</a>'
       +'<button class="mc-create-btn" onclick="createPostFromMention(\''+escHtml(item.firm)+'\',\''+escHtml(item.title).replace(/'/g,"\\'")+'\')">Criar post ↗</button>'
       +'</div>'
