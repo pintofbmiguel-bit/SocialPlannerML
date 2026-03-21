@@ -751,7 +751,9 @@ html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;font-size:14px;
 
 <script>
 var SHEET_URL='https://script.google.com/macros/s/AKfycbyXAf8l1N2tvaLOYuH5zt564etBL0TeDszatLScorDLnkQW3mVlykbTPWepn_c3OYCA/exec';
-var API_KEY='qGohgScuMAkXY_xyWBQjf9Nz0Xkrqh_81-JJ5H_SaU8';
+
+function getToken(){return googleUser?googleUser.token:'';}
+
 var posts=[],media=JSON.parse(localStorage.getItem('sp_media')||'[]'),library=JSON.parse(localStorage.getItem('sp_lib')||'[]');
 var cy,cm_,weekStart,calViewMode='month';
 var splats={li:true,ig:false,fb:false,tt:false},cimg='',editId=null;
@@ -777,7 +779,7 @@ function setSS(s,m){var b=document.getElementById('sync-bar');b.className='sync-
 
 function readSheets(){
   setSS('syncing','A carregar...');
-  return fetch(SHEET_URL+'?action=read&key='+API_KEY)
+  return fetch(SHEET_URL+'?action=read&token='+encodeURIComponent(getToken()))
     .then(function(r){return r.json();})
     .then(function(data){
       if(!Array.isArray(data)||data.length<2){posts=[];setSS('synced','Folha vazia');return;}
@@ -790,7 +792,7 @@ function readSheets(){
 
 function writeSheets(){
   setSS('syncing','A guardar...');
-  return fetch(SHEET_URL,{method:'POST',body:JSON.stringify({action:'write',key:API_KEY,posts:posts})})
+  return fetch(SHEET_URL,{method:'POST',body:JSON.stringify({action:'write',token:getToken(),posts:posts})})
     .then(function(r){return r.json();})
     .then(function(){var n=new Date();setSS('synced','Guardado às '+n.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}));})
     .catch(function(){setSS('error','Erro ao guardar');toast('Erro ao guardar no Google Sheets');});
@@ -828,7 +830,7 @@ function onGoogleLogin(response){
     document.getElementById('login-error').classList.add('show');
     return;
   }
-  googleUser={name:payload.name,email:email,picture:payload.picture};
+  googleUser={name:payload.name,email:email,picture:payload.picture,token:response.credential};
   localStorage.setItem('sp_guser',JSON.stringify(googleUser));
   document.getElementById('login-screen').classList.add('hidden');
   if(!currentAuthor){
@@ -1237,7 +1239,7 @@ function loadListening(){
   }
 
   firmKeys.forEach(function(key){
-    var url=SHEET_URL+'?action=rss&key='+API_KEY+'&q='+encodeURIComponent(FIRMS[key].query);
+    var url=SHEET_URL+'?action=rss&token='+encodeURIComponent(getToken())+'&q='+encodeURIComponent(FIRMS[key].query);
     fetch(url)
       .then(function(r){return r.json();})
       .then(function(data){
@@ -1254,7 +1256,7 @@ function loadListening(){
       .finally(done);
   });
 
-  var advUrl=SHEET_URL+'?action=rss&key='+API_KEY+'&q='+encodeURIComponent('site:advocatus.pt');
+  var advUrl=SHEET_URL+'?action=rss&token='+encodeURIComponent(getToken())+'&q='+encodeURIComponent('site:advocatus.pt');
   fetch(advUrl)
     .then(function(r){return r.json();})
     .then(function(data){
