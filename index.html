@@ -796,6 +796,13 @@ function readSheets(){
   return fetch(SHEET_URL+'?action=read&token='+encodeURIComponent(getToken()))
     .then(function(r){return r.json();})
     .then(function(data){
+      if(data.error&&data.error==='Acesso não autorizado'){
+        localStorage.removeItem('sp_guser');
+        document.getElementById('login-error').classList.add('show');
+        document.getElementById('login-screen').classList.remove('hidden');
+        document.getElementById('loading-screen').classList.add('hidden');
+        return;
+      }
       if(!Array.isArray(data)||data.length<2){posts=[];setSS('synced','Folha vazia');return;}
       posts=data.slice(1).map(function(r){return{id:String(r[0]||''),copy:String(r[1]||''),platforms:String(r[2]||'li').split('+'),dt:String(r[3]||''),status:String(r[4]||'draft'),img:String(r[5]||''),created:String(r[6]||''),author:String(r[7]||''),authorColor:String(r[8]||'')};}).filter(function(p){return p.id;});
       var n=new Date();setSS('synced','Sync às '+n.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}));
@@ -834,16 +841,11 @@ function saveAuthor(){
 }
 
 // GOOGLE OAUTH
-var ALLOWED_EMAILS=['mlgtslawfirm@gmail.com','pintofbmiguel@gmail.com'];
 var googleUser=null;
 
 function onGoogleLogin(response){
   var payload=JSON.parse(atob(response.credential.split('.')[1]));
   var email=payload.email||'';
-  if(ALLOWED_EMAILS.indexOf(email)===-1){
-    document.getElementById('login-error').classList.add('show');
-    return;
-  }
   googleUser={name:payload.name,email:email,picture:payload.picture,token:response.credential};
   localStorage.setItem('sp_guser',JSON.stringify(googleUser));
   document.getElementById('login-screen').classList.add('hidden');
