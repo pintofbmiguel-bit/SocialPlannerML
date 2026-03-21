@@ -378,7 +378,7 @@ html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;font-size:14px;
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M3 12h3M18 12h3M12 3v3M12 18v3"/></svg>
     </div>
     <div class="login-title">Social Planner</div>
-    <div class="login-sub">Inicia sessão com a tua conta<br><strong>@mlgts.pt</strong> para continuar</div>
+    <div class="login-sub">Inicia sessão com a conta Gmail<br>da equipa para continuar</div>
     <div id="g_id_onload"
       data-client_id="647958325525-6tcf2o0ni6mktvnjojq6b8mi0567k7sv.apps.googleusercontent.com"
       data-callback="onGoogleLogin"
@@ -394,7 +394,7 @@ html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;font-size:14px;
       data-width="280">
     </div>
     <div class="login-error" id="login-error">
-      ⚠️ Acesso restrito a contas <strong>@mlgts.pt</strong>. Usa o email da Morais Leitão.
+      ⚠️ Acesso não autorizado. Usa a conta Gmail da equipa Morais Leitão.
     </div>
   </div>
 </div>
@@ -818,14 +818,13 @@ function saveAuthor(){
 }
 
 // GOOGLE OAUTH
-var ALLOWED_DOMAIN='mlgts.pt';
+var ALLOWED_EMAILS=['mlgtslawfirm@gmail.com'];
 var googleUser=null;
 
 function onGoogleLogin(response){
   var payload=JSON.parse(atob(response.credential.split('.')[1]));
   var email=payload.email||'';
-  var domain=email.split('@')[1]||'';
-  if(domain!==ALLOWED_DOMAIN){
+  if(ALLOWED_EMAILS.indexOf(email)===-1){
     document.getElementById('login-error').classList.add('show');
     return;
   }
