@@ -769,6 +769,7 @@ var SHEET_URL='https://script.google.com/macros/s/AKfycbyXAf8l1N2tvaLOYuH5zt564e
 function getToken(){return googleUser?googleUser.token:'';}
 
 var posts=[],media=JSON.parse(localStorage.getItem('sp_media')||'[]'),library=JSON.parse(localStorage.getItem('sp_lib')||'[]');
+var isSaving=false;
 var cy,cm_,weekStart,calViewMode='month';
 var splats={li:true,ig:false,fb:false,tt:false},cimg='',editId=null;
 var acct='all',sf='all',lf='all',searchQ='',ptab='li';
@@ -791,9 +792,15 @@ function platIcon(pl,size){size=size||18;return '<div class="wk-pc-icon" style="
 
 function setSS(s,m){var b=document.getElementById('sync-bar');b.className='sync-bar '+s;document.getElementById('sync-txt').textContent=m;}
 
+function fetchWithTimeout(url,opts,ms){
+  var ctrl=new AbortController();
+  var tid=setTimeout(function(){ctrl.abort();},ms||20000);
+  return fetch(url,Object.assign({},opts||{},{signal:ctrl.signal})).finally(function(){clearTimeout(tid);});
+}
+
 function readSheets(){
   setSS('syncing','A carregar...');
-  return fetch(SHEET_URL+'?action=read&token='+encodeURIComponent(getToken()))
+  return fetchWithTimeout(SHEET_URL+'?action=read&token='+encodeURIComponent(getToken()),null,20000)
     .then(function(r){return r.json();})
     .then(function(data){
       if(data.error&&data.error==='Acesso não autorizado'){
@@ -808,12 +815,12 @@ function readSheets(){
       var n=new Date();setSS('synced','Sync às '+n.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}));
       renderAll();
     })
-    .catch(function(){setSS('error','Erro de ligação');toast('Não foi possível ligar ao Google Sheets');});
+    .catch(function(err){var msg=err&&err.name==='AbortError'?'A ligação demorou demasiado. Verifica a tua ligação.':'Não foi possível ligar ao Google Sheets';setSS('error','Erro de ligação');toast(msg);});
 }
 
 function writeSheets(){
   setSS('syncing','A guardar...');
-  return fetch(SHEET_URL,{method:'POST',body:JSON.stringify({action:'write',token:getToken(),posts:posts})})
+  return fetchWithTimeout(SHEET_URL,{method:'POST',body:JSON.stringify({action:'write',token:getToken(),posts:posts})},20000)
     .then(function(r){return r.json();})
     .then(function(){var n=new Date();setSS('synced','Guardado às '+n.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}));})
     .catch(function(){setSS('error','Erro ao guardar');toast('Erro ao guardar no Google Sheets');});
@@ -846,8 +853,9 @@ var googleUser=null;
 function onGoogleLogin(response){
   var payload=JSON.parse(atob(response.credential.split('.')[1]));
   var email=payload.email||'';
+  // Token JWT fica apenas em memória — nunca persistido em localStorage
   googleUser={name:payload.name,email:email,picture:payload.picture,token:response.credential};
-  localStorage.setItem('sp_guser',JSON.stringify(googleUser));
+  localStorage.setItem('sp_guser',JSON.stringify({name:payload.name,email:email,picture:payload.picture}));
   document.getElementById('login-screen').classList.add('hidden');
   if(!currentAuthor){
     currentAuthor={name:payload.name,color:'#7c6af7'};
@@ -877,7 +885,10 @@ function logout(){
 function checkLogin(){
   var stored=localStorage.getItem('sp_guser');
   if(stored){
-    googleUser=JSON.parse(stored);
+    var profile=JSON.parse(stored);
+    // Sessão anterior encontrada — perfil restaurado, token será renovado pelo Google Sign-In
+    // Token fica null até ao próximo login explícito; pedidos ao Sheets vão falhar graciosamente
+    googleUser={name:profile.name,email:profile.email,picture:profile.picture,token:null};
     document.getElementById('login-screen').classList.add('hidden');
     updateUserInfo();
     init();
@@ -1111,6 +1122,7 @@ function updPrev(){
 function setModalLoading(on){document.getElementById('btn-draft').disabled=on;document.getElementById('btn-sched').disabled=on;document.getElementById('btn-sched').textContent=on?'A guardar...':'Agendar publicação';}
 
 function savePst(statusOvr){
+  if(isSaving){toast('A guardar, aguarda...');return;}
   var copy=document.getElementById('m-copy').value.trim();
   if(!copy){toast('Escreve um copy primeiro!');return;}
   var plats=Object.keys(splats).filter(function(k){return splats[k];});
@@ -1120,8 +1132,9 @@ function savePst(statusOvr){
   var existing=editId?posts.find(function(p){return p.id===editId;}):null;
   var post={id:editId||Date.now()+'',copy:copy,platforms:plats,dt:date+'T'+time,status:status,img:cimg,created:existing?existing.created:new Date().toISOString(),author:authorName,authorColor:authorColor};
   if(editId){var idx=posts.findIndex(function(p){return p.id===editId;});if(idx>-1)posts[idx]=post;}else posts.push(post);
+  isSaving=true;
   setModalLoading(true);
-  writeSheets().then(function(){setModalLoading(false);closeModal();renderAll();toast(status==='draft'?'Rascunho guardado! ✓':'Publicação agendada! ✓');});
+  writeSheets().then(function(){closeModal();renderAll();toast(status='draft'?'Rascunho guardado! ✓':'Publicação agendada! ✓');}).catch(function(){toast('Erro ao guardar. Tenta novamente.');}).finally(function(){isSaving=false;setModalLoading(false);});
 }
 
 // LIST
@@ -1416,7 +1429,7 @@ function createPostFromMention(firm,title){
 
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
 
-if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(e){console.log('SW:',e);});});}
+if('serviceWorker' in navigator){window.addEventListener('load',function(){fetch('sw.js',{method:'HEAD'}).then(function(r){if(r.ok)return navigator.serviceWorker.register('sw.js');}).catch(function(){});});}
 </script>
 </body>
 </html>
